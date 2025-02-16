@@ -28,8 +28,7 @@ def read_pdf(file):
 def read_docx(file):
     try:
         doc = docx.Document(file)
-        text = "\n".join([para.text for para in doc.paragraphs])
-        return text
+        return "\n".join([para.text for para in doc.paragraphs])
     except Exception as e:
         st.error(f"Error reading DOC/DOCX: {e}")
         return ""
@@ -61,23 +60,35 @@ def ask_followup(legal_text, followup_question):
     )
     return chat_completion.choices[0].message.content
 
+def submit_followup():
+    # Triggered when the follow-up input changes (on pressing Enter).
+    question = st.session_state.followup_input.strip()
+    if question != "":
+        with st.spinner("Processing your follow-up question..."):
+            answer = ask_followup(st.session_state.legal_text, question)
+        st.session_state.followups.append({"question": question, "answer": answer})
+        st.session_state.followup_input = ""
+        if hasattr(st, "experimental_rerun"):
+            st.experimental_rerun()
+
 def main():
     st.title("No More Legalese")
     st.write("Upload a PDF, DOC/DOCX, or TXT file for analysis.")
 
-    # Initialize session state variables if not already present.
+    # Initialize session state variables.
     if "legal_text" not in st.session_state:
         st.session_state.legal_text = ""
     if "summary" not in st.session_state:
         st.session_state.summary = ""
     if "followups" not in st.session_state:
         st.session_state.followups = []
-    if "scroll_down" not in st.session_state:
-        st.session_state.scroll_down = False
+    if "followup_input" not in st.session_state:
+        st.session_state.followup_input = ""
 
+    # File uploader
     uploaded_file = st.file_uploader("Upload file", type=["pdf", "doc", "docx", "txt"])
 
-    # Automatically process and analyze the document once uploaded.
+    # Process the uploaded file.
     if uploaded_file is not None and st.session_state.legal_text == "":
         legal_text = ""
         file_type = uploaded_file.name.split('.')[-1].lower()
@@ -99,55 +110,34 @@ def main():
             st.session_state.legal_text = legal_text
             st.info("Analyzing document...")
             st.session_state.summary = analyze_document(legal_text)
-    
-    # Always display the analysis summary if available.
+
+    # Display the analysis summary.
     if st.session_state.summary:
         st.subheader("Document Analysis Summary:")
         st.write(st.session_state.summary)
 
-    # Follow-up questions section (only available after a document has been analyzed)
+    # Display previous follow-up interactions.
+    if st.session_state.followups:
+        st.markdown("### Previous Follow-Up Interactions")
+        for idx, qa in enumerate(st.session_state.followups, 1):
+            st.markdown(f"**Follow-Up #{idx}:**")
+            st.markdown(f"**Question:** {qa['question']}")
+            st.markdown(f"**Answer:** {qa['answer']}")
+            st.markdown("---")
+
+    # Render the Follow-Up Questions section at the bottom (no extra line before header).
     if st.session_state.legal_text:
-        st.markdown("---")
         st.subheader("Follow-Up Questions")
         st.write("Do you have any other questions? Is there anything else I can help you with?")
-        
-        # Allow follow-up submissions up to 20 times.
         if len(st.session_state.followups) < 20:
-            form_key = f"followup_form_{len(st.session_state.followups)}"
-            with st.form(key=form_key, clear_on_submit=True):
-                followup_question = st.text_input("Enter your follow-up question here:")
-                submitted = st.form_submit_button("Submit Follow-Up")
-                if submitted:
-                    if followup_question.strip() == "":
-                        st.error("Please enter a follow-up question.")
-                    else:
-                        st.info("Processing your follow-up question...")
-                        answer = ask_followup(st.session_state.legal_text, followup_question)
-                        st.session_state.followups.append({"question": followup_question, "answer": answer})
-                        st.session_state.scroll_down = True  # Set flag to scroll down after submission.
+            st.text_input(
+                "Enter your follow-up question here:",
+                key="followup_input",
+                on_change=submit_followup,
+                value=""
+            )
         else:
             st.warning("You have reached the maximum number of follow-up questions (20).")
-
-        # Display all previous follow-up interactions.
-        if st.session_state.followups:
-            st.markdown("### Previous Follow-Up Interactions")
-            for idx, qa in enumerate(st.session_state.followups, 1):
-                st.markdown(f"**Follow-Up #{idx}:**")
-                st.markdown(f"**Question:** {qa['question']}")
-                st.markdown(f"**Answer:** {qa['answer']}")
-                st.markdown("---")
-
-    # If a follow-up was just submitted, scroll to the bottom of the page.
-    if st.session_state.get("scroll_down", False):
-        st.markdown(
-            """
-            <script>
-            window.scrollTo(0,document.body.scrollHeight);
-            </script>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.session_state.scroll_down = False
 
 if __name__ == '__main__':
     main()
