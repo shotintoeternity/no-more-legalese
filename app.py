@@ -35,7 +35,7 @@ def read_docx(file):
 
 def analyze_document(legal_text):
     prompt = (
-        "Please summarize the following legal document. "
+        "You are a legal expert. Please summarize the following legal document. "
         "Explain its overall structure and content, highlight the most important parts, "
         "and analyze whether there is anything anomalous compared to most other legal contracts. "
         "Document:\n\n" + legal_text
@@ -73,8 +73,10 @@ def submit_followup():
 
 def main():
     st.title("No More Legalese")
-    st.write("Upload a PDF, DOC/DOCX, or TXT file for analysis.")
-
+    # Marketing section at the top
+    st.write("Welcome to No More Legalese, an app that helps take your boring legal documents and explains them to you in plain English! "
+             "You can upload or simply drag and drop a file below for analysis.")
+    
     # Initialize session state variables.
     if "legal_text" not in st.session_state:
         st.session_state.legal_text = ""
@@ -125,7 +127,7 @@ def main():
             st.markdown(f"**Answer:** {qa['answer']}")
             st.markdown("---")
 
-    # Render the Follow-Up Questions section at the bottom (no extra line before header).
+    # Render the Follow-Up Questions section at the bottom.
     if st.session_state.legal_text:
         st.subheader("Follow-Up Questions")
         st.write("Do you have any other questions? Is there anything else I can help you with?")
